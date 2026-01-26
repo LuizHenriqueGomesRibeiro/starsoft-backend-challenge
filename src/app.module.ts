@@ -5,6 +5,8 @@ import { SeatsModule } from './modules/seats/seats.module';
 import { Seat } from './modules/seats/entities/seat.entity';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { RedisModule } from '@nestjs-modules/ioredis';
+import { SessionModule } from './modules/session/session.module';
+import { Session } from './modules/session/entities/session.entity';
 
 @Module({
   imports: [
@@ -21,7 +23,7 @@ import { RedisModule } from '@nestjs-modules/ioredis';
         username: configService.get<string>('DB_USERNAME'),
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_NAME'),
-        entities: [Seat],
+        entities: [Seat, Session],
         synchronize: true,
         logging: true,
       }),
@@ -36,6 +38,7 @@ import { RedisModule } from '@nestjs-modules/ioredis';
         url: configService.get<string>('REDIS_URL'),
       }),
     }),
+    SessionModule,
   ],
 })
 export class AppModule {}

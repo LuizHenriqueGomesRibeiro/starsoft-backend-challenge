@@ -1,14 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
-import { Index } from 'typeorm';
-
-export enum SeatStatus {
-  AVAILABLE = 'available',
-  LOCKED = 'locked',
-  OCCUPIED = 'occupied',
-}
+import { Session } from 'src/modules/session/entities/session.entity';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
 
 @Entity('seats')
-@Index(['sessionId', 'row', 'number'], { unique: true })
 export class Seat {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -19,13 +12,12 @@ export class Seat {
   @Column()
   number: number;
 
-  @Column({
-    type: 'enum',
-    enum: SeatStatus,
-    default: SeatStatus.AVAILABLE,
-  })
-  status: SeatStatus;
+  @Column({ default: 'available' })
+  status: string;
 
-  @Column()
-  sessionId: string;
+  @ManyToOne(() => Session, (session) => session.seats)
+  session: Session;
+
+  @Column({ nullable: true })
+  bookingId: string;
 }
