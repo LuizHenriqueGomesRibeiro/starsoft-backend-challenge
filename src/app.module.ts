@@ -10,6 +10,9 @@ import { Session } from './modules/session/entities/session.entity';
 import { CacheModule } from '@nestjs/cache-manager';
 import * as redisStore from 'cache-manager-redis-yet';
 import { Reservation } from './modules/reservations/entities/reservation.entity';
+import { UserModule } from './modules/user/user.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { User } from './modules/user/entities/user.entity';
 
 @Module({
   imports: [
@@ -39,7 +42,7 @@ import { Reservation } from './modules/reservations/entities/reservation.entity'
         username: configService.get<string>('DB_USERNAME'),
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_NAME'),
-        entities: [Seat, Session, Reservation],
+        entities: [Seat, Session, Reservation, User],
         synchronize: true,
         logging: true,
       }),
@@ -55,6 +58,8 @@ import { Reservation } from './modules/reservations/entities/reservation.entity'
       }),
     }),
     SessionModule,
+    UserModule,
+    AuthModule,
   ],
 })
 export class AppModule {}

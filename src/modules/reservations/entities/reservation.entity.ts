@@ -4,8 +4,10 @@ import {
   Column,
   CreateDateColumn,
   OneToMany,
+  ManyToOne,
 } from 'typeorm';
 import { Seat } from '../../seats/entities/seat.entity';
+import { User } from 'src/modules/user/entities/user.entity';
 
 @Entity('reservations')
 export class Reservation {
@@ -14,6 +16,9 @@ export class Reservation {
 
   @Column()
   userId: string;
+
+  @ManyToOne(() => User, (user) => user.reservations, { nullable: false })
+  user: User;
 
   @Column({
     type: 'enum',
