@@ -22,7 +22,7 @@ import { RedisModule } from '@nestjs-modules/ioredis';
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_NAME'),
         entities: [Seat],
-        synchronize: false,
+        synchronize: true,
         logging: true,
       }),
     }),
