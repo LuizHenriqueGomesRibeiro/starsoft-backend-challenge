@@ -9,10 +9,13 @@ import { SessionModule } from './modules/session/session.module';
 import { Session } from './modules/session/entities/session.entity';
 import { CacheModule } from '@nestjs/cache-manager';
 import * as redisStore from 'cache-manager-redis-yet';
+import { Reservation } from './modules/reservations/entities/reservation.entity';
 
 @Module({
   imports: [
     CacheModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
       isGlobal: true,
       useFactory: async (configService: ConfigService) => ({
         store: await redisStore.redisStore({
@@ -36,7 +39,7 @@ import * as redisStore from 'cache-manager-redis-yet';
         username: configService.get<string>('DB_USERNAME'),
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_NAME'),
-        entities: [Seat, Session],
+        entities: [Seat, Session, Reservation],
         synchronize: true,
         logging: true,
       }),
