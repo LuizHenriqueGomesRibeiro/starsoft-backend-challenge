@@ -1,5 +1,12 @@
+import { Reservation } from 'src/modules/reservations/entities/reservation.entity';
 import { Session } from 'src/modules/session/entities/session.entity';
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+
+export enum SeatStatus {
+  AVAILABLE = 'available',
+  LOCKED = 'locked',
+  OCCUPIED = 'occupied',
+}
 
 @Entity('seats')
 export class Seat {
@@ -20,4 +27,9 @@ export class Seat {
 
   @Column({ nullable: true })
   bookingId: string;
+
+  @ManyToOne(() => Reservation, (reservation) => reservation.seats, {
+    nullable: true,
+  })
+  reservation: Reservation;
 }

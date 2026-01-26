@@ -9,6 +9,8 @@ export class SessionService {
   constructor(
     @InjectRepository(Session)
     private sessionRepository: Repository<Session>,
+    @InjectRepository(Seat)
+    private seatRepository: Repository<Seat>,
   ) {}
 
   async create(movieTitle: string, startTime: Date) {
@@ -32,5 +34,12 @@ export class SessionService {
     }
 
     return this.sessionRepository.save(session);
+  }
+
+  async findSeatsBySession(sessionId: string) {
+    return await this.seatRepository.find({
+      where: { session: { id: sessionId } },
+      order: { row: 'ASC', number: 'ASC' },
+    });
   }
 }

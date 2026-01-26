@@ -7,9 +7,22 @@ import { ReservationsModule } from './modules/reservations/reservations.module';
 import { RedisModule } from '@nestjs-modules/ioredis';
 import { SessionModule } from './modules/session/session.module';
 import { Session } from './modules/session/entities/session.entity';
+import { CacheModule } from '@nestjs/cache-manager';
+import * as redisStore from 'cache-manager-redis-yet';
 
 @Module({
   imports: [
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: async (configService: ConfigService) => ({
+        store: await redisStore.redisStore({
+          socket: {
+            host: 'redis',
+            port: configService.get<number>('REDIS_PORT'),
+          },
+        }),
+      }),
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
