@@ -2,11 +2,11 @@ import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('reservations')
 export class ReservationsController {
   constructor(private readonly reservationsService: ReservationsService) {}
 
-  @UseGuards(JwtAuthGuard)
   @Post(':seatId')
   async create(
     @Param('seatId') seatId: string,
