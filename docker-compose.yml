@@ -29,7 +29,7 @@ services:
       - REDIS_HOST=redis
       - DB_HOST=postgres
     deploy:
-      replicas: 5
+      replicas: 1
   nginx:
     image: nginx:alpine
     volumes:
