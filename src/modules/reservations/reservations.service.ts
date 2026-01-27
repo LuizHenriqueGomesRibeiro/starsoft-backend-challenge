@@ -22,8 +22,15 @@ export class ReservationsService {
         lock: { mode: 'pessimistic_write' },
       });
 
+      const instanceId = process.env.HOSTNAME;
+
       if (!seat) {
-        throw new BadRequestException('Assento indisponível ou já reservado');
+        throw new BadRequestException({
+          message: 'Assento indisponível ou já reservado',
+          instanceId: instanceId,
+          error: 'Bad Request',
+          statusCode: 400,
+        });
       }
 
       const lockKey = `lock:seat:${seatId}`;
@@ -38,7 +45,11 @@ export class ReservationsService {
         status: 'pending',
       });
 
-      return await manager.save(reservation);
+      const result = await manager.save(reservation);
+      return {
+        ...result,
+        instanceId,
+      };
     });
   }
 
