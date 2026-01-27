@@ -13,6 +13,7 @@ import { Reservation } from './modules/reservations/entities/reservation.entity'
 import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { User } from './modules/user/entities/user.entity';
+import Redis from 'ioredis';
 
 @Module({
   imports: [
@@ -55,6 +56,17 @@ import { User } from './modules/user/entities/user.entity';
       useFactory: (configService: ConfigService) => ({
         type: 'single',
         url: configService.get<string>('REDIS_URL'),
+        options: {
+          onClientCreated: (client: Redis) => {
+            client.on('connect', () => {
+              console.log('🚀 Redis conectado com sucesso!');
+            });
+            client.on('error', (err: Error) => {
+              console.error('❌ Erro de conexão no Redis:', err);
+            });
+          },
+          retryStrategy: () => null,
+        },
       }),
     }),
     SessionModule,

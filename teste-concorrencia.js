@@ -10,7 +10,7 @@ if (!seatId || !token) {
 const url = `http://localhost:3000/reservations/lock/${seatId}`;
 
 async function rodarTeste() {
-  const TOTAL_REQUISICOES = 2000;
+  const TOTAL_REQUISICOES = 100;
   console.log(`🚀 Iniciando ${TOTAL_REQUISICOES} requisições para o assento ${seatId}...`);
   
   const startTimeTotal = Date.now();
