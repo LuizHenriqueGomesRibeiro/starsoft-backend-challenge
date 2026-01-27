@@ -1,21 +1,31 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Controller, Param, Post, UseGuards, Request } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+
+interface AuthenticatedRequest extends Request {
+  user: {
+    userId: string;
+    email: string;
+  };
+}
 
 @UseGuards(JwtAuthGuard)
 @Controller('reservations')
 export class ReservationsController {
   constructor(private readonly reservationsService: ReservationsService) {}
 
-  @Post(':seatId')
-  async create(
-    @Param('seatId') seatId: string,
-    @Body('userId') userId: string,
+  @Post('lock/:id')
+  async lockSeat(
+    @Param('id') seatId: string,
+    @Request() req: AuthenticatedRequest,
   ) {
-    return await this.reservationsService.reserveSeat(seatId, userId);
+    return await this.reservationsService.createPendingReservation(
+      seatId,
+      req.user.userId,
+    );
   }
 
-  @Post(':id/confirm')
+  @Post('confirm/:id')
   async confirm(@Param('id') reservationId: string) {
     return await this.reservationsService.confirm(reservationId);
   }

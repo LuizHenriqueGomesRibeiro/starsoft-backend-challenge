@@ -29,48 +29,17 @@ export class ReservationsService {
       const lockKey = `lock:seat:${seatId}`;
       await this.cacheManager.set(lockKey, userId, 30000);
 
-      seat.status = 'LOCKED';
+      seat.status = 'locked';
       await manager.save(seat);
 
       const reservation = manager.create(Reservation, {
         userId,
         seats: [seat],
-        status: 'PENDING',
+        status: 'pending',
       });
 
       return await manager.save(reservation);
     });
-  }
-
-  async reserveSeat(seatId: string, userId: string) {
-    return await this.dataSource.transaction(
-      async (transactionalEntityManager) => {
-        const seat = await transactionalEntityManager.findOne(Seat, {
-          where: { id: seatId, status: 'available' },
-          lock: { mode: 'pessimistic_write' },
-        });
-
-        if (!seat) {
-          throw new BadRequestException(
-            'Assento não encontrado ou já ocupado por outro processo.',
-          );
-        }
-
-        const lockKey = `lock:seat:${seatId}`;
-        await this.cacheManager.set(lockKey, userId, 30000);
-
-        seat.status = 'locked';
-        await transactionalEntityManager.save(seat);
-
-        const reservation = transactionalEntityManager.create(Reservation, {
-          userId,
-          status: 'pending',
-          seats: [seat],
-        });
-
-        return await transactionalEntityManager.save(reservation);
-      },
-    );
   }
 
   async confirm(reservationId: string) {
