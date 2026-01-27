@@ -3,8 +3,8 @@ import { Reservation } from './entities/reservation.entity';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Seat } from '../seats/entities/seat.entity';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import type { Cache } from 'cache-manager';
-import { Repository } from 'typeorm';
 
 @Injectable()
 export class ReservationsService {
@@ -12,50 +12,65 @@ export class ReservationsService {
     @InjectRepository(Seat) private seatRepo: Repository<Seat>,
     @InjectRepository(Reservation) private resRepo: Repository<Reservation>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private dataSource: DataSource,
   ) {}
 
   async createPendingReservation(seatId: string, userId: string) {
-    const seat = await this.seatRepo.findOne({
-      where: { id: seatId, status: 'available' },
+    return await this.dataSource.transaction(async (manager) => {
+      const seat = await manager.findOne(Seat, {
+        where: { id: seatId, status: 'available' },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!seat) {
+        throw new BadRequestException('Assento indisponível ou já reservado');
+      }
+
+      const lockKey = `lock:seat:${seatId}`;
+      await this.cacheManager.set(lockKey, userId, 30000);
+
+      seat.status = 'LOCKED';
+      await manager.save(seat);
+
+      const reservation = manager.create(Reservation, {
+        userId,
+        seats: [seat],
+        status: 'PENDING',
+      });
+
+      return await manager.save(reservation);
     });
-    if (!seat) throw new BadRequestException('Assento indisponível');
-
-    const lockKey = `lock:seat:${seatId}`;
-    await this.cacheManager.set(lockKey, userId, 30000);
-
-    seat.status = 'LOCKED';
-    await this.seatRepo.save(seat);
-
-    const reservation = this.resRepo.create({
-      userId,
-      seats: [seat],
-      status: 'PENDING',
-    });
-    return this.resRepo.save(reservation);
   }
 
   async reserveSeat(seatId: string, userId: string) {
-    const seat = await this.seatRepo.findOne({
-      where: { id: seatId, status: 'available' },
-    });
+    return await this.dataSource.transaction(
+      async (transactionalEntityManager) => {
+        const seat = await transactionalEntityManager.findOne(Seat, {
+          where: { id: seatId, status: 'available' },
+          lock: { mode: 'pessimistic_write' },
+        });
 
-    if (!seat) {
-      throw new BadRequestException('Assento não encontrado ou já ocupado.');
-    }
+        if (!seat) {
+          throw new BadRequestException(
+            'Assento não encontrado ou já ocupado por outro processo.',
+          );
+        }
 
-    const lockKey = `lock:seat:${seatId}`;
-    await this.cacheManager.set(lockKey, userId, 30000);
+        const lockKey = `lock:seat:${seatId}`;
+        await this.cacheManager.set(lockKey, userId, 30000);
 
-    seat.status = 'locked';
-    await this.seatRepo.save(seat);
+        seat.status = 'locked';
+        await transactionalEntityManager.save(seat);
 
-    const reservation = this.resRepo.create({
-      userId,
-      status: 'pending',
-      seats: [seat],
-    });
+        const reservation = transactionalEntityManager.create(Reservation, {
+          userId,
+          status: 'pending',
+          seats: [seat],
+        });
 
-    return await this.resRepo.save(reservation);
+        return await transactionalEntityManager.save(reservation);
+      },
+    );
   }
 
   async confirm(reservationId: string) {
