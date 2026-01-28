@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Seat, SeatStatus } from './entities/seat.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -19,18 +19,5 @@ export class SeatsService {
 
   async updateStatus(id: string, status: SeatStatus): Promise<void> {
     await this.seatRepository.update(id, { status });
-  }
-
-  async findOne(id: string): Promise<Seat> {
-    const seat = await this.seatRepository.findOne({
-      where: { id },
-      relations: ['session'],
-    });
-
-    if (!seat) {
-      throw new NotFoundException(`Assento com ID ${id} não encontrado.`);
-    }
-
-    return seat;
   }
 }

@@ -82,4 +82,14 @@ export class ReservationsService {
 
     return await this.resRepo.save(reservation);
   }
+
+  async getUserHistory(userId: string) {
+    return await this.resRepo.find({
+      where: { userId },
+      relations: ['seats'],
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
 }

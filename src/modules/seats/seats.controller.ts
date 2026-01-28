@@ -12,9 +12,4 @@ export class SeatsController {
   async findBySession(@Param('sessionId') sessionId: string): Promise<Seat[]> {
     return this.seatsService.getSeatsBySession(sessionId);
   }
-
-  @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return await this.seatsService.findOne(id);
-  }
 }

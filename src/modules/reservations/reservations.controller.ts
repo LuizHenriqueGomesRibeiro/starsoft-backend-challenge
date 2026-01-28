@@ -1,4 +1,11 @@
-import { Controller, Param, Post, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Param,
+  Post,
+  UseGuards,
+  Request,
+  Get,
+} from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -28,5 +35,10 @@ export class ReservationsController {
   @Post('confirm/:id')
   async confirm(@Param('id') reservationId: string) {
     return await this.reservationsService.confirm(reservationId);
+  }
+
+  @Get('my-history')
+  async getMyHistory(@Request() req: AuthenticatedRequest) {
+    return await this.reservationsService.getUserHistory(req.user.userId);
   }
 }
