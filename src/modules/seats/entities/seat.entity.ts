@@ -28,6 +28,9 @@ export class Seat {
   @Column({ nullable: true })
   bookingId: string;
 
+  @Column({ type: 'timestamp', nullable: true })
+  lockedAt: Date | null;
+
   @ManyToOne(() => Reservation, (reservation) => reservation.seats, {
     nullable: true,
   })

@@ -3,7 +3,7 @@ import { Reservation } from './entities/reservation.entity';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Seat } from '../seats/entities/seat.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, LessThan } from 'typeorm';
 import type { Cache } from 'cache-manager';
 
 @Injectable()
@@ -16,28 +16,38 @@ export class ReservationsService {
   ) {}
 
   async createPendingReservation(seatId: string, userId: string) {
+    const instanceId = process.env.HOSTNAME;
+    const lockKey = `lock:seat:${seatId}`;
+
+    const now = new Date();
+    const thirtySecondsAgo = new Date(now.getTime() - 30000);
+
     return await this.dataSource.transaction(async (manager) => {
       const seat = await manager.findOne(Seat, {
-        where: { id: seatId, status: 'available' },
+        where: [
+          { id: seatId, status: 'available' },
+          {
+            id: seatId,
+            status: 'locked',
+            lockedAt: LessThan(thirtySecondsAgo),
+          },
+        ],
         lock: { mode: 'pessimistic_write' },
       });
 
-      const instanceId = process.env.HOSTNAME;
-
       if (!seat) {
         throw new BadRequestException({
-          message: 'Assento indisponível ou já reservado',
-          instanceId: instanceId,
-          error: 'Bad Request',
-          statusCode: 400,
+          message:
+            'Assento indisponível ou em processo de compra por outro usuário',
+          instanceId,
         });
       }
 
-      const lockKey = `lock:seat:${seatId}`;
-      await this.cacheManager.set(lockKey, userId, 30000);
-
       seat.status = 'locked';
+      seat.lockedAt = now;
       await manager.save(seat);
+
+      await this.cacheManager.set(lockKey, userId, 30000);
 
       const reservation = manager.create(Reservation, {
         userId,
@@ -46,6 +56,7 @@ export class ReservationsService {
       });
 
       const result = await manager.save(reservation);
+
       return {
         ...result,
         instanceId,

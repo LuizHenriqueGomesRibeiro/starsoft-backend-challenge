@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../user/user.service';
 import { User } from '../user/entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
@@ -6,6 +6,8 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
@@ -13,23 +15,23 @@ export class AuthService {
 
   async validateUser(email: string, pass: string): Promise<User> {
     const user = await this.usersService.findByEmail(email);
+    const passwordToCompare = user?.password ?? 'force_bcrypt_delay';
+    const isMatch = await bcrypt.compare(pass, passwordToCompare);
 
-    if (user) {
-      const isMatch = await bcrypt.compare(pass, user.password);
-
-      if (isMatch) {
-        return user;
-      }
+    if (!user || !isMatch) {
+      this.logger.warn({ msg: 'Tentativa de login inválida', email });
+      throw new UnauthorizedException('E-mail ou senha inválidos');
     }
 
-    throw new UnauthorizedException('E-mail ou senha inválidos');
+    return user;
   }
 
   login(user: User) {
     const payload = { email: user.email, sub: user.id };
-    const access_token = this.jwtService.sign(payload);
+    this.logger.log({ msg: 'Gerando token de acesso', userId: user.id });
+
     return {
-      access_token,
+      access_token: this.jwtService.sign(payload),
     };
   }
 }

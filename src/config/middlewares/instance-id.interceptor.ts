@@ -6,10 +6,9 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { Observable, of } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import * as os from 'os';
-import { Response } from 'express';
 
 interface WrappedResponse<T> {
   instanceId: string;
@@ -24,12 +23,10 @@ export class AllResponsesInterceptor<T> implements NestInterceptor<
   WrappedResponse<T>
 > {
   intercept(
-    context: ExecutionContext,
+    _: ExecutionContext,
     next: CallHandler,
   ): Observable<WrappedResponse<T>> {
     const instanceId = os.hostname();
-    const httpContext = context.switchToHttp();
-    const response = httpContext.getResponse<Response>();
 
     return next.handle().pipe(
       map((data: T): WrappedResponse<T> => {
@@ -52,16 +49,14 @@ export class AllResponsesInterceptor<T> implements NestInterceptor<
           errorMessage = { message: err.message };
         }
 
-        const errorBody = {
+        const errorResponse = {
           ...(typeof errorMessage === 'object' && errorMessage !== null
             ? (errorMessage as Record<string, unknown>)
             : { message: errorMessage }),
           instanceId,
         };
 
-        response.status(status).json(errorBody);
-
-        return of() as unknown as Observable<never>;
+        return throwError(() => new HttpException(errorResponse, status));
       }),
     );
   }

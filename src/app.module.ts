@@ -13,6 +13,7 @@ import { Reservation } from './modules/reservations/entities/reservation.entity'
 import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { User } from './modules/user/entities/user.entity';
+import { CustomLoggerModule } from './modules/logger/logger.module';
 import Redis from 'ioredis';
 
 @Module({
@@ -45,7 +46,7 @@ import Redis from 'ioredis';
         database: configService.get<string>('DB_NAME'),
         entities: [Seat, Session, Reservation, User],
         synchronize: true,
-        logging: true,
+        logging: false,
       }),
     }),
     SeatsModule,
@@ -72,6 +73,7 @@ import Redis from 'ioredis';
     SessionModule,
     UserModule,
     AuthModule,
+    CustomLoggerModule,
   ],
 })
 export class AppModule {}
