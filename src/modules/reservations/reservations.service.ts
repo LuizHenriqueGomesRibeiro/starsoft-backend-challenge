@@ -5,6 +5,7 @@ import { Seat } from '../seats/entities/seat.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, LessThan } from 'typeorm';
 import type { Cache } from 'cache-manager';
+import { ClientProxy } from '@nestjs/microservices';
 
 @Injectable()
 export class ReservationsService {
@@ -13,6 +14,7 @@ export class ReservationsService {
     @InjectRepository(Reservation) private resRepo: Repository<Reservation>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private dataSource: DataSource,
+    @Inject('TICKET_SERVICE') private client: ClientProxy,
   ) {}
 
   async createPendingReservation(seatId: string, userId: string) {
@@ -65,22 +67,52 @@ export class ReservationsService {
   }
 
   async confirm(reservationId: string) {
-    const reservation = await this.resRepo.findOne({
-      where: { id: reservationId },
-      relations: ['seats'],
+    return await this.dataSource.transaction(async (manager) => {
+      const reservation = await manager.findOne(Reservation, {
+        where: { id: reservationId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!reservation) {
+        throw new BadRequestException('Reserva não encontrada');
+      }
+
+      if (reservation.status === 'confirmed') {
+        throw new BadRequestException('Esta reserva já foi confirmada');
+      }
+
+      const seats = await manager.find(Seat, {
+        where: { reservationId: reservation.id },
+      });
+
+      for (const seat of seats) {
+        if (seat.status === 'occupied') {
+          throw new BadRequestException(
+            `O assento ${seat.row}-${seat.number} já está ocupado`,
+          );
+        }
+
+        seat.status = 'occupied';
+        seat.lockedAt = null;
+        await manager.save(seat);
+        await this.cacheManager.del(`lock:seat:${seat.id}`);
+      }
+
+      reservation.status = 'confirmed';
+      const savedReservation = await manager.save(reservation);
+
+      this.client.emit('reservation_confirmed', {
+        id: savedReservation.id,
+        user: savedReservation.userId,
+        seats: seats.map((s) => ({ row: s.row, num: s.number })),
+        timestamp: new Date(),
+      });
+
+      return {
+        ...savedReservation,
+        seats,
+      };
     });
-
-    if (!reservation) throw new BadRequestException('Reserva não encontrada');
-
-    reservation.status = 'confirmed';
-
-    for (const seat of reservation.seats) {
-      seat.status = 'occupied';
-      await this.cacheManager.del(`lock:seat:${seat.id}`);
-      await this.seatRepo.save(seat);
-    }
-
-    return await this.resRepo.save(reservation);
   }
 
   async getUserHistory(userId: string) {
