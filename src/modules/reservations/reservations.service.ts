@@ -1,4 +1,9 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { Reservation } from './entities/reservation.entity';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Seat } from '../seats/entities/seat.entity';
@@ -9,8 +14,9 @@ import { ClientProxy } from '@nestjs/microservices';
 
 @Injectable()
 export class ReservationsService {
+  private readonly logger = new Logger(ReservationsService.name);
+
   constructor(
-    @InjectRepository(Seat) private seatRepo: Repository<Seat>,
     @InjectRepository(Reservation) private resRepo: Repository<Reservation>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private dataSource: DataSource,
@@ -24,6 +30,11 @@ export class ReservationsService {
     const thirtySecondsAgo = new Date(now.getTime() - 30000);
 
     return await this.dataSource.transaction(async (manager) => {
+      this.logger.log({
+        msg: 'Iniciando transação para reserva pendente',
+        seatId,
+        userId,
+      });
       const seat = await manager.findOne(Seat, {
         where: [
           { id: seatId, status: 'available' },
@@ -37,6 +48,11 @@ export class ReservationsService {
       });
 
       if (!seat) {
+        this.logger.warn({
+          msg: 'Assento indisponível ou em processo de compra por outro usuário',
+          seatId,
+          userId,
+        });
         throw new BadRequestException({
           message:
             'Assento indisponível ou em processo de compra por outro usuário',
@@ -70,7 +86,11 @@ export class ReservationsService {
       }
 
       const result = await manager.save(reservation);
-
+      this.logger.log({
+        msg: 'Reserva pendente criada com sucesso',
+        reservationId: result.id,
+        userId,
+      });
       return {
         ...result,
         instanceId,
@@ -80,16 +100,22 @@ export class ReservationsService {
 
   async confirm(reservationId: string) {
     return await this.dataSource.transaction(async (manager) => {
+      this.logger.log({
+        msg: 'Iniciando transação para confirmação de reserva',
+        reservationId,
+      });
       const reservation = await manager.findOne(Reservation, {
         where: { id: reservationId },
         lock: { mode: 'pessimistic_write' },
       });
 
       if (!reservation) {
+        this.logger.warn({ msg: 'Reserva não encontrada', reservationId });
         throw new BadRequestException('Reserva não encontrada');
       }
 
       if (reservation.status === 'confirmed') {
+        this.logger.warn({ msg: 'Reserva já confirmada', reservationId });
         throw new BadRequestException('Esta reserva já foi confirmada');
       }
 
@@ -99,6 +125,11 @@ export class ReservationsService {
 
       for (const seat of seats) {
         if (seat.status === 'occupied') {
+          this.logger.warn({
+            msg: 'Assento já ocupado',
+            seatId: seat.id,
+            reservationId,
+          });
           throw new BadRequestException(
             `O assento ${seat.row}-${seat.number} já está ocupado`,
           );
@@ -113,6 +144,10 @@ export class ReservationsService {
       reservation.status = 'confirmed';
       const savedReservation = await manager.save(reservation);
 
+      this.logger.log({
+        msg: 'Reserva confirmada com sucesso',
+        reservationId: savedReservation.id,
+      });
       this.client.emit('reservation_confirmed', {
         id: savedReservation.id,
         user: savedReservation.userId,
@@ -128,6 +163,10 @@ export class ReservationsService {
   }
 
   async getUserHistory(userId: string) {
+    this.logger.log({
+      msg: 'Buscando histórico de reservas do usuário',
+      userId,
+    });
     return await this.resRepo.find({
       where: { userId, status: 'confirmed' },
       relations: ['seats'],

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Session } from './entities/session.entity';
 import { Repository } from 'typeorm';
@@ -6,6 +6,8 @@ import { Seat } from '../seats/entities/seat.entity';
 
 @Injectable()
 export class SessionService {
+  private readonly logger = new Logger(SessionService.name);
+
   constructor(
     @InjectRepository(Session)
     private sessionRepository: Repository<Session>,
@@ -19,15 +21,24 @@ export class SessionService {
     seatList: string[],
     price: number,
   ) {
+    this.logger.log({ msg: 'Criando nova sessão', movieTitle, startTime });
     const uniqueSeats = [...new Set(seatList.map((s) => s.toUpperCase()))];
 
     if (uniqueSeats.length < 16) {
+      this.logger.warn({
+        msg: 'Número insuficiente de assentos únicos fornecidos',
+        uniqueSeatsCount: uniqueSeats.length,
+      });
       throw new BadRequestException(
         `A sessão precisa de 16 assentos únicos. Fornecidos: ${uniqueSeats.length}`,
       );
     }
 
     if (!seatList || seatList.length < 16) {
+      this.logger.warn({
+        msg: 'Número insuficiente de assentos fornecidos',
+        seatListLength: seatList.length,
+      });
       throw new BadRequestException(
         'A sessão precisa ter no mínimo 16 assentos.',
       );
@@ -52,11 +63,16 @@ export class SessionService {
 
       session.seats.push(seat);
     }
-
+    this.logger.log({
+      msg: 'Sessão criada com sucesso',
+      movieTitle,
+      startTime,
+    });
     return await this.sessionRepository.save(session);
   }
 
   async findSeatsBySession(sessionId: string) {
+    this.logger.log({ msg: 'Buscando assentos para a sessão', sessionId });
     return await this.seatRepository.find({
       where: { session: { id: sessionId } },
       order: { row: 'ASC', number: 'ASC' },

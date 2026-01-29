@@ -19,7 +19,7 @@ export class AuthService {
     const isMatch = await bcrypt.compare(pass, passwordToCompare);
 
     if (!user || !isMatch) {
-      this.logger.warn({ msg: 'Tentativa de login inválida', email });
+      this.logger.warn({ msg: 'Tentativa de login inválida' });
       throw new UnauthorizedException('E-mail ou senha inválidos');
     }
 
