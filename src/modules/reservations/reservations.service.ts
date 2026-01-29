@@ -129,7 +129,7 @@ export class ReservationsService {
 
   async getUserHistory(userId: string) {
     return await this.resRepo.find({
-      where: { userId },
+      where: { userId, status: 'confirmed' },
       relations: ['seats'],
       order: {
         createdAt: 'DESC',
