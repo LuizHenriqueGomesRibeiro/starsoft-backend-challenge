@@ -20,7 +20,6 @@ export class ReservationsService {
   async createPendingReservation(seatId: string, userId: string) {
     const instanceId = process.env.HOSTNAME;
     const lockKey = `lock:seat:${seatId}`;
-
     const now = new Date();
     const thirtySecondsAgo = new Date(now.getTime() - 30000);
 
@@ -51,11 +50,24 @@ export class ReservationsService {
 
       await this.cacheManager.set(lockKey, userId, 30000);
 
-      const reservation = manager.create(Reservation, {
-        userId,
-        seats: [seat],
-        status: 'pending',
+      let reservation = await manager.findOne(Reservation, {
+        where: {
+          seats: { id: seatId },
+          status: 'pending',
+        },
       });
+
+      if (reservation) {
+        reservation.userId = userId;
+        reservation.createdAt = now;
+      } else {
+        reservation = manager.create(Reservation, {
+          userId,
+          seats: [seat],
+          status: 'pending',
+          price: seat.price,
+        });
+      }
 
       const result = await manager.save(reservation);
 

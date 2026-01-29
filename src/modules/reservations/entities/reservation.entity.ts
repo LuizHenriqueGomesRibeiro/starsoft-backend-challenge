@@ -20,6 +20,9 @@ export class Reservation {
   @ManyToOne(() => User, (user) => user.reservations, { nullable: false })
   user: User;
 
+  @Column({ nullable: false })
+  price: number;
+
   @Column({
     type: 'enum',
     enum: ['pending', 'confirmed', 'cancelled'],
