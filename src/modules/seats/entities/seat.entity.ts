@@ -28,6 +28,9 @@ export class Seat {
   @Column({ nullable: true })
   bookingId: string;
 
+  @Column({ nullable: false })
+  price: number;
+
   @Column({ type: 'timestamp', nullable: true })
   lockedAt: Date | null;
 

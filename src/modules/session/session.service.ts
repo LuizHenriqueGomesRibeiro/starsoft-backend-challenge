@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Session } from './entities/session.entity';
 import { Repository } from 'typeorm';
@@ -13,27 +13,47 @@ export class SessionService {
     private seatRepository: Repository<Seat>,
   ) {}
 
-  async create(movieTitle: string, startTime: Date) {
+  async create(
+    movieTitle: string,
+    startTime: Date,
+    seatList: string[],
+    price: number,
+  ) {
+    const uniqueSeats = [...new Set(seatList.map((s) => s.toUpperCase()))];
+
+    if (uniqueSeats.length < 16) {
+      throw new BadRequestException(
+        `A sessão precisa de 16 assentos únicos. Fornecidos: ${uniqueSeats.length}`,
+      );
+    }
+
+    if (!seatList || seatList.length < 16) {
+      throw new BadRequestException(
+        'A sessão precisa ter no mínimo 16 assentos.',
+      );
+    }
+
     const session = this.sessionRepository.create({
       movieTitle,
       startTime,
       seats: [],
     });
 
-    const rows = ['A', 'B', 'C', 'D', 'E'];
-    const seatsPerRow = 10;
+    for (const seatCode of seatList) {
+      const seat = new Seat();
 
-    for (const row of rows) {
-      for (let i = 1; i <= seatsPerRow; i++) {
-        const seat = new Seat();
-        seat.row = row;
-        seat.number = i;
-        seat.status = 'available';
-        session.seats.push(seat);
-      }
+      const rowMatch = seatCode.match(/[A-Z]+/i) || ['?'];
+      const numMatch = seatCode.match(/\d+/) || ['0'];
+
+      seat.row = rowMatch[0].toUpperCase();
+      seat.number = parseInt(numMatch[0], 10);
+      seat.status = 'available';
+      seat.price = price;
+
+      session.seats.push(seat);
     }
 
-    return this.sessionRepository.save(session);
+    return await this.sessionRepository.save(session);
   }
 
   async findSeatsBySession(sessionId: string) {
